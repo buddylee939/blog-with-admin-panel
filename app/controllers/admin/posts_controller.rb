@@ -43,8 +43,8 @@ class Admin::PostsController < Admin::ApplicationController
 
   def destroy    
     @post.destroy
-
-    redirect_to :back, notice: 'Post was successfully deleted'
+    flash[:notice] = 'Post was successfully deleted'
+    redirect_back(fallback_location: root_path)
   end
 
   private

@@ -665,6 +665,49 @@ end
 ```
 
 - **updating posts**
+- add before action find_post and update update action
+
+```
+  def update    
+    if @post.update(post_params)
+      redirect_to admin_posts_url, notice: 'Post was successfully updated'
+    else
+      flash[:alert] = 'There was a problem updating post'
+      render :edit
+    end
+  end
+```
+
+- **deleting posts**
+- update destroy action in posts controller
+
+```
+  def destroy    
+    @post.destroy
+    flash[:notice] = 'Post was successfully deleted'
+    redirect_back(fallback_location: root_path)
+  end
+```
+
+- make sure in post.rb the dependents are deleted as well
+
+```
+  has_many :comments, dependent: :destroy
+  has_many :post_tags, dependent: :destroy
+```
+
+- and in comment.rb
+
+```
+  belongs_to :post
+  belongs_to :visitor
+  has_many :notifications, as: :notifiable, dependent: :destroy
+```
+
+- the post will delete the comments associated, and the comments will delete the notifications associated
+
+## Creating tags
+
 - 
 
 
@@ -735,4 +778,26 @@ b. read
 c. update
 - can update any post
 - show success/failure flash messages
+```
+
+- Tags
+
+```
+Actors:
+1. moderator
+a. create
+- ability to create multiple tags separated by comma in a text field
+- show success/failure flash messages
+b. read
+- list all tags with heading:
+- name, actions, edit | delete
+- make delete button in-active for tags in use
+c. update
+- can update any tags
+- can also update tags in use
+- show success/failure flash messages
+d. delete
+- cannot delete a tag currently attached to a blog
+- can delete a tag not attached to any blog
+- show success/failue flash messages
 ```
