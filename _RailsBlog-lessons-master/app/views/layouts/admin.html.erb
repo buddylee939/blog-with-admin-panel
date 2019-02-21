@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RAILSBlog</title>
+  <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true %>
+  <%= javascript_include_tag 'application', 'data-turbolinks-track' => true %>
+  <%= csrf_meta_tags %>
+</head>
+<body>
+
+<% if flash[:notice] %>
+	<div class="notice"><%= flash[:notice] %></div>
+<% end %>
+
+<% if flash[:alert] %>
+	<div class="alert"><%= flash[:alert] %></div>
+<% end %>
+
+<%= link_to 'Log out', logout_path %>
+
+<p>
+	<%= link_to 'Posts', admin_posts_path %>
+	<%= link_to 'Moderators', admin_moderators_path %>
+	<%= link_to 'Tags', new_admin_tag_path %>
+	<%= link_to 'Comments', admin_comments_path %>
+	<%= link_to 'Visitors', admin_visitors_path %>
+	<%= link_to 'Messages', admin_messages_path %>
+	<%= link_to 'Notifications', admin_notifications_path %>
+	<%= link_to 'Dashboard', admin_dashboard_index_path %>
+	<%= link_to 'Setting', new_admin_setting_path %>
+</p>
+
+<%= yield %>
+
+</body>
+</html>
