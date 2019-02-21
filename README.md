@@ -373,7 +373,7 @@ type c to continue
 <%= link_to 'Log out', logout_path %>
 ```
 
-## Creatig the posts section
+## Creating the posts section
 
 - rails g controller admin/posts index new create edit update show destroy
 - update routes
@@ -708,10 +708,181 @@ end
 
 ## Creating tags
 
-- 
+- rails g controller admin/tags new create edit update show destroy
+- update routes
 
+```
+  namespace :admin do
+    resources :posts
+    resources :tags, except: [:index]
+    resources :sessions, only: [:new, :create, :destroy]
+    resources :moderators, only: [:index, :edit, :update]
+  end
+```
 
+- in views/admin/tags delete create update destroy files
+- update views/admin/tags/new
 
+```
+<h1>Admin::Tags#new</h1>
+
+<%= form_for [:admin, @tag] do |f| %>
+	<p><%= f.text_area :name, placeholder: 'e.g Ruby, Python, Php' %></p>
+	<p><%= f.submit %></p>
+<% end %>
+
+<table class="table table-bordered table-hover">
+	<thead>
+		<tr>
+			<th>name</th>
+			<th>status</th>
+			<th>created</th>
+			<th>actions</th>
+		</tr>
+	</thead>
+	<tbody>
+		<% @tags.each do |tag| %>
+			<tr>
+				<td><%= tag.name %></td>
+				<td><%= status_converter(tag.in_use?, truthy: 'in use', falsey: 'not in use') %></td>
+				<td><%= time_ago tag.created_at %></td>
+				<td>
+					<%= link_to edit_admin_tag_path(tag) do %>
+						<button type="button">Edit</button>
+					<% end %>
+
+					<%= create_deletable_button tag %>
+				</td>
+			</tr>
+		<% end %>
+
+	</tbody>
+</table>
+```
+
+- update tags controller
+
+```
+class Admin::TagsController < Admin::ApplicationController
+  def new
+    @tag = Tag.new
+    @tags = Tag.all.order(id: :desc)
+  end
+
+  def create
+    tags_params[:name].split(',').map do |n|
+      Tag.new(name: n).save
+    end
+    redirect_to new_admin_tag_url, notice: 'Tag was successfully created'
+  end
+
+  def edit
+    @tag = Tag.find(params[:id])
+  end
+
+  def update
+    @tag = Tag.find(params[:id])
+    if @tag.update tags_params
+      redirect_to new_admin_tag_url, notice: 'Successfully updated tag'
+    else
+      flash[:alert] = 'There was a problem updating tag'
+      render :edit
+    end
+  end
+
+  def show
+  end
+
+  def destroy
+    @tag = Tag.find(params[:id])
+    @tag.destroy
+
+    redirect_to :back, notice: 'Successfully deleted tag'
+  end
+
+  private
+
+  def tags_params
+    params.require(:tag).permit(:id, :name)
+  end
+end
+```
+
+- in tag.rb add the in_use? method
+
+```
+  has_many :post_tags
+  has_many :posts, through: :post_tags
+
+  validates :name, presence: true
+  def in_use?
+    PostTag.exists?(tag_id: self.id)
+  end  
+```
+
+- in tags/new add
+
+```
+<td><%= status_converter(tag.in_use?, truthy: 'in use', falsey: 'not in use') %></td>
+```  
+
+- creating a link to block with a button
+
+```
+<%= link_to edit_admin_tag_path(tag) do %>
+	<button type="button">Edit</button>
+<% end %>
+```					
+
+- update the tags/edit file
+
+```
+<h1>Admin::Tags#edit</h1>
+
+<%= form_for [:admin, @tag] do |f| %>
+	<p><%= f.label :name %></p>
+	<p><%= f.text_field :name %></p>
+	<p><%= f.submit %></p>
+<% end %>
+
+```
+
+- **making the delete button in-active while the tag is in use**
+- in the tag/new add
+
+```
+<%= create_deletable_button tag %>
+```
+
+- in tags_helper create the method
+
+```
+	def create_deletable_button tag 
+		if tag.in_use?
+			link_to '#' do
+			# this is cuz we can't use html in the ruby file
+				content_tag(:button, 'Delete', class: 'disabled')
+			end
+		else
+			link_to admin_tag_path(tag), method: :delete, data: { confirm: 'Are you sure?' } do
+				content_tag(:button, 'Delete')
+			end
+		end
+	end
+```
+
+- update the tags destroy action in the controller
+
+```
+  def destroy
+    @tag = Tag.find(params[:id])
+    @tag.destroy
+
+    redirect_to new_admin_tag_url, notice: 'Successfully deleted tag'
+  end
+```
+
+## Creating comments
 
 
 ## THESE ARE HIS NOTES ON WHAT HE'S BUILDING
@@ -800,4 +971,26 @@ d. delete
 - cannot delete a tag currently attached to a blog
 - can delete a tag not attached to any blog
 - show success/failue flash messages
+```
+
+- Comments
+
+```
+Actors:
+a. read
+- approved comments
+- can view a list of approved comments
+- show delete link for each comment
+- able to mark comment as not-approved
+- not approved comments
+- can view a list of not-approved comments
+- show delete link each comment
+- able to mark comment as approved
+- should have a search field to search word pattern in comments
+- should have a search field to search word pattern in visitor
+b. update
+- show success/failure flash messages
+c. delete
+- ability to delete any comment
+- show success/failure flash messages
 ```
