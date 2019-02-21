@@ -884,6 +884,226 @@ end
 
 ## Creating comments
 
+- update seed file to add visitors and comments
+
+```
+  visitor = Visitor.create(
+    fullname: Faker::Name.name, 
+    email: Faker::Internet.email)
+
+  comment = Comment.create(
+    message: Faker::Lorem.paragraph,
+    status: [true, false].sample,
+    post: post,
+    visitor: visitor)
+```
+
+- rails db:reset
+- rails g controller admin/comments index update destroy
+- update routes
+
+```
+  namespace :admin do
+    resources :posts
+    resources :comments, only: [:index, :update, :destroy]
+    resources :tags, except: [:index]
+    resources :sessions, only: [:new, :create, :destroy]
+    resources :moderators, only: [:index, :edit, :update]
+  end
+```
+
+- delete comments update and destroy files
+- update comments controllers
+
+```
+class Admin::CommentsController < Admin::ApplicationController
+  def index
+  	if params[:search].present?
+  		@comments = Comment.matching_fullname_or_message(params[:search]).page params[:page]
+  	else
+  		@comments = Comment.where(status: to_bool(params[:status])).page params[:page]
+  	end
+  end
+
+  def update
+  	@comment = Comment.find(params[:id])
+  	if @comment.update(status: params[:status])
+  		redirect_to :back, notice: 'Successfully updated comment'
+  	else
+  		redirect_to :back, notice: 'There was a problem updating comment'
+  	end
+  end
+
+  def destroy
+  	@comment = Comment.find(params[:id])
+  	@comment.destroy
+
+  	redirect_to :back, notice: 'Successfully deleted comment'
+  end
+end
+
+```
+
+- update comments controller
+
+```
+class Admin::CommentsController < Admin::ApplicationController
+  def index
+    if params[:search].present?
+      @comments = Comment.matching_fullname_or_message(params[:search]).page params[:page]
+    else
+      # @comments = Comment.where(status: to_bool(params[:status])).page params[:page]
+      # @comments = Comment.all.page params[:page]
+      @comments = Comment.where(status: to_bool(params[:status])).page params[:page]
+    end
+  end
+
+  def update
+    @comment = Comment.find(params[:id])
+    if @comment.update(status: params[:status])
+      flash[:notice] = 'Successfully updated comment'
+      redirect_back(fallback_location: root_path)      
+    else
+      flash[:alert] = 'There was a problem updating comment'
+      redirect_back(fallback_location: root_path)         
+    end
+  end
+
+  def destroy
+    @comment = Comment.find(params[:id])
+    @comment.destroy
+    flash[:notice] = 'Comment deleted successfully'
+    redirect_back(fallback_location: root_path)
+  end
+end
+```
+
+- update comments/index
+
+```
+<h1>Comments</h1>
+
+<p>
+	<%#= render 'search', route: admin_comments_path %>
+</p>
+
+<p>
+	<%= link_to 'Approved', admin_comments_path(status: true) %>
+	<%= link_to 'Un-approved', admin_comments_path(status: false) %>
+</p>
+
+<% @comments.each do |comment| %>
+	<p><b><%= comment.visitor.fullname %></b> posted message on <b><%= comment.post.title %></b></p>
+	<p><%= comment.message %></p>
+	<p>
+		<%= link_to 'Delete', admin_comment_path(comment), method: :delete, data: {confirm: 'Are you sure?'} %>
+		<%= 
+			if params[:status] == 'true'
+				link_to 'Un-approve', admin_comment_path(comment, status: false), method: :put
+			else
+				link_to 'Approve', admin_comment_path(comment, status: true), method: :put
+			end
+		%>
+	</p>
+	<hr>
+<% end %>
+
+<%= paginate @comments %>
+```
+
+- add to_bool method in admin/application controller
+
+```
+  def to_bool string
+    ActiveRecord::Type::Boolean.new.cast(string)
+  end
+```
+
+- **unapproved and approved button**
+- add the link to the comment/index
+
+```
+		<%= 
+			if params[:status] == 'true'
+				link_to 'Un-approve', admin_comment_path(comment, status: false), method: :put
+			else
+				link_to 'Approve', admin_comment_path(comment, status: true), method: :put
+			end
+		%>
+	</p>
+```
+
+- make sure comments update action is
+
+
+```
+  def update
+    @comment = Comment.find(params[:id])
+    if @comment.update(status: params[:status])
+      flash[:notice] = 'Successfully updated comment'
+      redirect_back(fallback_location: root_path)      
+    else
+      flash[:alert] = 'There was a problem updating comment'
+      redirect_back(fallback_location: root_path)         
+    end
+  end
+```
+
+- **adding search to comments**
+- add to the comment.rb, we are search visitor name with the joins,
+
+```
+  def self.matching_fullname_or_message params
+    joins(:visitor).where("fullname LIKE ? OR message LIKE ?", "%#{params}%", "%#{params}%")
+  end
+```
+
+- update the index action in comments controller
+
+```
+  def index
+    if params[:search].present?
+      @comments = Comment.matching_fullname_or_message(params[:search]).page params[:page]
+    else
+      # @comments = Comment.where(status: to_bool(params[:status])).page params[:page]
+      # @comments = Comment.all.page params[:page]
+      @comments = Comment.where(status: to_bool(params[:status])).page params[:page]
+    end
+  end
+```    	  
+
+- add to the comments/index the search form
+
+```
+<p>
+	<%= form_tag(admin_comments_path, method: :get) do %>
+		<%= text_field_tag :search %>
+		<%= submit_tag 'Search' %>
+	<% end %>	
+</p>
+
+```
+
+- **refactoring the search form since we are using it in different places**
+- create admin/application/search partial
+
+```
+<%= form_tag(route, method: :get) do %>
+	<%= text_field_tag :search %>
+	<%= submit_tag 'Search' %>
+<% end %>
+```
+
+- in the views replace the forms with the render
+
+```
+<p>
+	<%= render 'search', route: admin_comments_path %>
+</p>
+```
+
+
+
 
 ## THESE ARE HIS NOTES ON WHAT HE'S BUILDING
 
@@ -992,5 +1212,21 @@ b. update
 - show success/failure flash messages
 c. delete
 - ability to delete any comment
+- show success/failure flash messages
+```
+
+- Visitors
+
+```
+Actors:
+a. read
+- list all visitors with heading
+- fullname, email, status, created
+- should have a delete button
+b. update
+- 
+c. delete
+- deleting a visitor will:
+- delete all comments by the user (warm before delete)
 - show success/failure flash messages
 ```

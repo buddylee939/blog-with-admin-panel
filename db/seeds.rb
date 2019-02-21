@@ -21,15 +21,15 @@ moderator = Moderator.create(
 
   post_tag = PostTag.create(post: post, tag: tag)
 
-  # visitor = Visitor.create(
-  #   fullname: Faker::Name.name, 
-  #   email: Faker::Internet.email)
+  visitor = Visitor.create(
+    fullname: Faker::Name.name, 
+    email: Faker::Internet.email)
 
-  # comment = Comment.create(
-  #   message: Faker::Lorem.paragraph,
-  #   status: [true, false].sample,
-  #   post: post,
-  #   visitor: visitor)
+  comment = Comment.create(
+    message: Faker::Lorem.paragraph,
+    status: [true, false].sample,
+    post: post,
+    visitor: visitor)
 
   # message = Message.create(
   #   content: Faker::Lorem.paragraph,

@@ -16,6 +16,6 @@ class Admin::ApplicationController < ActionController::Base
   end
 
   def to_bool string
-    ActiveRecord::Type::Boolean.new.type_cast_from_user(string)
+    ActiveRecord::Type::Boolean.new.cast(string)
   end
 end
