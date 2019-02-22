@@ -1323,8 +1323,88 @@ end
   end
 ```
 
--   
+## notifications
 
+- update the seed file
+
+```
+  notifiable = [visitor, comment].sample
+
+  notification = Notification.create(
+    notifiable_id: notifiable.id,
+    notifiable_type: notifiable.class.name)
+```
+
+- db:reset
+- rails g controller admin/notifications index destroy
+- update routes
+
+```
+  namespace :admin do
+    resources :posts
+    resources :notifications, only: [:index, :destroy]
+    resources :messages, only: [:index, :show, :update, :destroy]
+    resources :visitors, only: [:index, :destroy]
+    resources :comments, only: [:index, :update, :destroy]
+    resources :tags, except: [:index]
+    resources :sessions, only: [:new, :create, :destroy]
+    resources :moderators, only: [:index, :edit, :update]
+  end
+```
+
+- update notifications/index
+
+```
+<h1>Notifications</h1>
+
+<%=
+	if Notification.any?
+		link_to 'Dismiss All', dismiss_all_notifications_path, method: :delete
+	end
+%>
+
+<% @visitor_notifications.each do |notif| %>
+	<p>
+		<%= "#{notif.notifiable.fullname} added as a new visitor #{time_ago notif.created_at}" %>
+		<%= link_to 'Dismiss', admin_notification_path(notif), method: :delete, data: {confirm: 'Are you sure?'} %>
+	</p>
+<% end %>
+
+<hr>
+
+<% @comment_notifications.each do |notif| %>
+	<p>
+		<%= "#{notif.notifiable.visitor.fullname} added a comment #{time_ago notif.created_at}" %>
+		<%= link_to 'Dismiss', admin_notification_path(notif), method: :delete, data: {confirm: 'Are you sure?'} %>
+	</p>
+<% end %>
+```
+
+- update notifications controller
+
+```
+class Admin::NotificationsController < Admin::ApplicationController
+  def index
+    @visitor_notifications = Notification.where(notifiable_type: 'Visitor').order(id: :desc)
+    @comment_notifications = Notification.where(notifiable_type: 'Comment').order(id: :desc)
+  end
+
+  def destroy
+    @notifiable = Notification.find(params[:id])
+    @notifiable.destroy
+    flash[:notice] = 'Notification was deleted successfully'
+    redirect_back(fallback_location: root_path)
+  end
+
+  def delete_all
+    Notification.delete_all
+    flash[:notice] = 'All notifications deleted successfully'
+    redirect_back(fallback_location: root_path) 
+  end
+end
+```
+
+- add to routes the dismiss_all_notifications_path  
 
 
 
@@ -1479,5 +1559,29 @@ b. update
 c. delete
 - can delete any message
 - deleting message does not delete associated visitor
+- show success/failure flash messages
+```
+
+- Notifications
+
+```
+Actors:
+1. system
+a. create
+- auto create record when
+- new visitor registered
+- new comment is registered
+2. moderators
+a. read 
+- list of visitor notifications / comment notifications
+- with name of visitor, date created and dismiss all links
+- dismissing notification
+- clicking on dismiss should delete the notifications
+- clicking on dismiss all should delete all notifications
+- dismiss all link should be hidden if no notification exists
+b. update
+- show success/failure flash messages
+c. delete
+- moderator can delete any notification
 - show success/failure flash messages
 ```
