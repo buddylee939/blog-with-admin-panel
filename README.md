@@ -1406,9 +1406,110 @@ end
 
 - add to routes the dismiss_all_notifications_path  
 
+## Dashboard
 
+- rails g controller admin/dashboard index
+- update routes
 
+```
+  namespace :admin do
+    resources :posts
+    resources :dashboard, only: [:index]
+    resources :notifications, only: [:index, :destroy]
+    resources :messages, only: [:index, :show, :update, :destroy]
+    resources :visitors, only: [:index, :destroy]
+    resources :comments, only: [:index, :update, :destroy]
+    resources :tags, except: [:index]
+    resources :sessions, only: [:new, :create, :destroy]
+    resources :moderators, only: [:index, :edit, :update]
+  end
+```
 
+- update dashboard controller
+
+```
+class Admin::DashboardController < Admin::ApplicationController
+  def index
+  	@posts = Post.last 5
+  	@comments = Comment.last 5
+  	@visitors = Visitor.last 5
+  end
+end
+
+```
+
+- update dashboard/index
+
+```
+<h1>Dashboard</h1>
+
+<h2>Post</h2>
+<%= link_to	'create new post', new_admin_post_path %><br>
+<%= link_to	'list posts', admin_posts_path %>
+
+<table class="table table-bordered table-hover">
+	<thead>
+		<tr>
+			<th>title</th>
+			<th>replies</th>
+			<th>date</th>
+			<th>actions</th>
+		</tr>
+	</thead>
+	<tbody>
+		<% @posts.each do |post| %>
+			<tr>
+				<td><%= truncate(post.title, length: 40, separator: '') %></td>
+				<td><%= post.comments.count %></td>
+				<td><%= time_ago post.created_at %></td>
+				<td>
+					<%= link_to 'edit', edit_admin_post_path(post) %>
+					<%= link_to 'view', admin_post_path(post) %>
+					<%= link_to 'del', admin_post_path(post), method: :delete, data: {confirm: 'Are you sure?'} %>
+				</td>
+			</tr>
+		<% end %>
+	</tbody>
+</table>
+
+<h2>Comments</h2>
+<%= link_to 'list all comments', admin_comments_path %>
+
+<% @comments.each do |comment| %>
+	<p><%= comment.visitor.fullname %></p>
+	<p><%= truncate(comment.message, length: 125, separator: '') %></p>
+	<p><%= time_ago comment.created_at %></p>
+	<hr>
+<% end %>
+
+<h2>Visitors</h2>
+<table class="table table-bordered table-hover">
+	<thead>
+		<tr>
+			<th>#</th>
+			<th>Full Name</th>
+			<th>Email</th>
+			<th>Created</th>
+			<th>Actions</th>
+		</tr>
+	</thead>
+	<tbody>
+		<% @visitors.each_with_index do |visitor, index| %>
+		<tr>
+			<td><%= index + 1 %></td>
+			<td><%= visitor.fullname %></td>
+			<td><%= visitor.email %></td>
+			<td><%= time_ago visitor.created_at %></td>
+			<td>
+				<%= link_to 'delete', admin_visitor_path(visitor), method: :delete, data: {confirm: 'Are your sure?'} %>
+			</td>
+		</tr>
+		<% end %>
+	</tbody>
+</table>
+```
+
+## Settings page
 
 
 ## THESE ARE HIS NOTES ON WHAT HE'S BUILDING
@@ -1584,4 +1685,50 @@ b. update
 c. delete
 - moderator can delete any notification
 - show success/failure flash messages
+```
+
+- Dashboard
+
+```
+Actors:
+1. moderators
+a. read
+- list 5 posts
+- can see a list of posts with headings:
+- title, replies, date, actions delete, edit, show
+- clicking on 'show link' will take moderator to view blog details
+- title, content, publish status, created date
+- edi, delete links are always enabled
+- list 5 comments
+- can see a list of comments with headings:
+- visitor name, date, message
+- message will be truncated to fit space
+- list 5 visitors
+- list visitors with heading:
+- fullname, email, status, created, actions: delete
+b. update
+= show success/failure flash messages
+- delete
+- ability to delete visitor from dashboard
+- can delete any post
+- show success/failure flash messages
+```
+
+- Settings
+
+```
+Actors: 
+1. moderators
+a. create
+- should be created when app is seeded
+b. update
+- moderator can edit settings
+- there should only be one row for settings in database
+- site name
+- post per page
+- under maintenence
+- prevent commenting
+- set tag visibility
+c. delete
+- settings is not deletable
 ```
