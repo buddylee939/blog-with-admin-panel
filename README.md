@@ -1102,6 +1102,232 @@ end
 </p>
 ```
 
+## creating visitors
+
+- rails g controller admin/visitors index destroy
+- update routes
+
+```
+  namespace :admin do
+    resources :posts
+    resources :visitors, only: [:index, :destroy]
+    resources :comments, only: [:index, :update, :destroy]
+    resources :tags, except: [:index]
+    resources :sessions, only: [:new, :create, :destroy]
+    resources :moderators, only: [:index, :edit, :update]
+  end
+```
+
+- update visitors/index
+
+```
+<h1>Visitors</h1>
+
+<% @visitors.each do |visitor| %>
+	<p><%= visitor.fullname %></p>
+	<p><%= visitor.email %></p>
+	<p><%= time_ago visitor.created_at %></p>
+	<p><%= link_to 'Delete', admin_visitor_path(visitor), method: :delete, data: {confirm: 'Are you sure?'} %></p>
+	<hr>
+<% end %>
+```
+
+- update visitors controller
+
+```
+class Admin::VisitorsController < Admin::ApplicationController
+  def index
+    @visitors = Visitor.all.order(id: :desc).page params[:page]
+  end
+
+  def destroy
+    @visitor = Visitor.find(params[:id])
+    @visitor.destroy
+    flash[:notice] = 'Successfully deleted visitor'
+    redirect_back(fallback_location: root_path)
+  end
+end
+
+```
+
+- update visitor.rb model
+
+```
+class Visitor < ApplicationRecord
+  has_many :notifications, as: :notifiable, dependent: :destroy
+  has_many :comments, dependent: :destroy
+  has_many :messages, dependent: :destroy
+end
+```
+
+## sending messages
+
+- rails g migration AddStatusToMessages status:boolean
+- update the migration to add null false and default false
+
+```
+  def change
+    add_column :messages, :status, :boolean, null: false, default: false
+  end
+```
+
+- rails db:migrate
+- update the messages in seed
+
+```
+  message = Message.create(
+    content: Faker::Lorem.paragraph,
+    status: [true, false].sample,
+    visitor: visitor)
+```  
+
+- rails db:reset
+- rails g controller admin/messages index show update destroy
+- update routes
+
+```
+  namespace :admin do
+    resources :posts
+    resources :messages, only: [:index, :show, :update, :destroy]
+    resources :visitors, only: [:index, :destroy]
+    resources :comments, only: [:index, :update, :destroy]
+    resources :tags, except: [:index]
+    resources :sessions, only: [:new, :create, :destroy]
+    resources :moderators, only: [:index, :edit, :update]
+  end
+```
+
+- update messages/index
+
+```
+<h1>Messages</h1>
+
+<p>
+	<%= render 'search', route: admin_messages_path %>
+</p>
+
+<% @messages.each do |message| %>
+	<p style=<%= message_weight(message) %>>
+		<%= message.visitor.fullname %><br>
+		<%= truncate(message.content, length: 60, separator: '') %><br>
+		<%= status_converter(message.status, truthy: 'Read', falsey: 'Un-Read') %><br>
+		<%= time_ago(message.created_at) %><br>
+	</p>
+
+	<p>
+		<%= link_to 'Delete', admin_message_path(message), method: :delete, data: {confirm: 'Are you sure?'} %>
+		<%= link_to 'Show', admin_message_path(message) %>
+	</p>
+
+	<p>
+		<%= build_read_status_link message %>
+	</p>
+
+	<hr>
+<% end %>
+
+<%= paginate @messages %>
+```
+
+- update messages controller
+
+```
+class Admin::MessagesController < Admin::ApplicationController
+  def index
+    if params[:search].present?
+      @messages = Message.matching_fullname_or_content(params[:search]).page params[:page]
+    else
+      @messages = Message.all.order(id: :desc).page params[:page]
+    end
+  end
+
+  def show
+    @message = Message.find(params[:id])
+    @message.mark_read
+  end
+
+  def update
+    @message = Message.find(params[:id])
+    @message.update(status: params[:status])
+    flash[:notice] = 'Successfully updated message'
+    redirect_back(fallback_location: root_path)
+  end
+
+  def destroy
+    @message = Message.find(params[:id])
+    @message.destroy
+    flash[:notice] = 'Message was successfully deleted'
+    redirect_back(fallback_location: root_path)
+  end
+end
+
+```  
+
+- update messages.rb
+
+```
+class Message < ApplicationRecord
+  belongs_to :visitor
+
+  def self.matching_fullname_or_content params
+    joins(:visitor).where("fullname LIKE ? OR content LIKE ?", "%#{params}%", "%#{params}%")
+  end
+
+  def mark_read
+    update(status: true) if status == false
+  end
+end
+
+```
+
+- update helpers/admin/messages helper
+
+```
+	def message_weight message
+		message.status == false ? 'font-weight:bold' : 'font-weight:normal'
+	end
+
+	def build_read_status_link message
+		if message.status == true 
+			link_to 'Un-Read', admin_message_path(message, status: false), method: :put
+		else
+			link_to 'Read', admin_message_path(message, status: true), method: :put
+		end
+	end
+```
+
+- update messages/show
+
+```
+<h1>Messages#show</h1>
+
+<p><b>From:</b> <%= @message.visitor.fullname %></p>
+<p><b>When:</b> <%= time_ago @message.created_at %></p>
+<p><b>Message:</b> <%= @message.content %></p>
+```
+
+- **how to mark message as read when you open the message**
+- in the meassages controller show action, he links the method
+
+```
+    @message = Message.find(params[:id])
+    @message.mark_read
+  end
+```
+
+- and in the message.rb model creates the method
+
+```
+  def mark_read
+    update(status: true) if status == false
+  end
+```
+
+-   
+
+
+
+
 
 
 
@@ -1228,5 +1454,30 @@ b. update
 c. delete
 - deleting a visitor will:
 - delete all comments by the user (warm before delete)
+- show success/failure flash messages
+```
+
+- Messages
+
+```
+Actors:
+1. moderators
+a. read
+- moderator sees a list of all messages with fields
+- message, visitor name, date of message
+- ability to search for messages by content
+- ability to search for messages by visitor
+- ability to mark messages as read
+- this should make a font weight to regular for that message row
+- ability to mark message as unread
+- this should make the font weight to be bolded for that row
+- clicking on view should
+- show whow message is from, full message and date
+- automatically mark the message as read
+b. update
+- show success/failure flash messages
+c. delete
+- can delete any message
+- deleting message does not delete associated visitor
 - show success/failure flash messages
 ```
