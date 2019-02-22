@@ -1511,6 +1511,120 @@ end
 
 ## Settings page
 
+- rails g controller admin/settings new create edit update
+- update routes
+
+```
+  namespace :admin do
+    resources :posts
+    resources :settings, only: [:new, :edit, :update, :create]
+    resources :dashboard, only: [:index]
+    resources :notifications, only: [:index, :destroy]
+    resources :messages, only: [:index, :show, :update, :destroy]
+    resources :visitors, only: [:index, :destroy]
+    resources :comments, only: [:index, :update, :destroy]
+    resources :tags, except: [:index]
+    resources :sessions, only: [:new, :create, :destroy]
+    resources :moderators, only: [:index, :edit, :update]
+  end
+```
+
+- update settings controller
+
+```
+class Admin::SettingsController < Admin::ApplicationController
+  def new
+  	if Setting.any?
+  		redirect_to edit_admin_setting_url(Setting.first)
+  	else
+  		@setting = Setting.new
+  	end
+  end
+
+  def create
+  	@setting = Setting.new(settings_params)
+  	if @setting.save
+  		redirect_to edit_admin_setting_url(@setting), notice: 'Successfully created setting'
+  	else
+  		flash[:alert] = 'There was a problem creating setting'
+  		render :new
+  	end
+  end
+
+  def edit
+  	@setting = Setting.find(params[:id])
+  end
+
+  def update
+  	@setting = Setting.find(params[:id])
+  	if @setting.update(settings_params)
+  		redirect_to edit_admin_setting_url(@setting), notice: 'Successfully updated setting'
+  	else
+  		flash[:alert] = 'There was a problem updating setting'
+  		render :edit 
+  	end
+  end
+
+  private
+  def settings_params
+  	params.require(:setting).permit(:id, :site_name, :post_per_page, :under_maintenance, :prevent_commenting,
+  		:tag_visibility)
+  end
+end
+
+```
+
+- create the settings/form partial
+
+```
+<%= form_for [:admin, @setting] do |f| %>
+	<p>
+		<%= f.label :site_name %><br>
+		<%= f.text_field :site_name %>
+	</p>
+	<p>
+		<%= f.label :post_per_page %><br>
+		<%= f.number_field :post_per_page %>
+	</p>
+	<p>
+		<%= f.label :under_maintenance %><br>
+		<%= f.check_box :under_maintenance %>
+	</p>
+	<p>
+		<%= f.label :prevent_commenting %><br>
+		<%= f.select :prevent_commenting, [['disable', false], ['active', true]] %>
+	</p>
+	<p>
+		<%= f.label :tag_visibility %><br>
+		<%= f.select :tag_visibility, [['active', true], ['disable', false]] %>
+	</p>
+	<p><%= f.submit %></p>
+<% end %>
+```
+
+- update settings/new
+
+```
+<h1>Settings#new</h1>
+<%= render 'form' %>
+```
+
+- update/edit
+
+```
+<h1>Settings#edit</h1>
+<%= render 'form' %>
+
+```
+
+## Front end layout
+
+- rails g controller posts index show
+- update routes
+
+```
+
+```
 
 ## THESE ARE HIS NOTES ON WHAT HE'S BUILDING
 
@@ -1731,4 +1845,31 @@ b. update
 - set tag visibility
 c. delete
 - settings is not deletable
+```
+
+- Front end specifications
+
+```
+# Nav
+- show blog name (link to posts)
+- post link
+- about link
+- contact link
+- sign in link
+
+# Posts
+## index
+= list all posts with (title, date posted, summary content, read more, tags)
+- pages should be paginated
+- 'read more' should show details of post
+- only show published posts
+- limit posts listings based on Setting (post per page)
+- ability to hide tags if 'hide tag' is set to true in settings
+- ability to click a tag and filter posts to show only posts with that tag
+- link to view all posts
+
+## show 
+- show content with full details (title, date, content, tags, counter)
+- show list of comments
+- etc
 ```

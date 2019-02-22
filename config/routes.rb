@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   root 'admin/moderators#index'
   namespace :admin do
     resources :posts
+    resources :settings, only: [:new, :edit, :update, :create]
     resources :dashboard, only: [:index]
     resources :notifications, only: [:index, :destroy]
     resources :messages, only: [:index, :show, :update, :destroy]
