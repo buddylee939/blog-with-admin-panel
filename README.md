@@ -2319,8 +2319,50 @@ end
 
 ### Notifications
 
-- 
+- add the after_save in visitor.rb
 
+```
+  after_save :notify
+
+  def notify
+    notifications.build.save
+  end
+```
+
+- add to the comment.rb as well
+
+```
+  after_save :notify
+
+  def notify
+    notifications.build.save
+  end
+```
+
+- since we have this same code in both places,
+- create the file models/concerns/notifiable.rb
+
+```
+module Notifiable
+  extend ActiveSupport::Concern
+
+  included do 
+    after_save :notify
+  end
+
+  def notify
+    notifications.build.save
+  end
+end
+```  
+
+- delete the code from comment and visitor and replace with
+
+```
+include Notifiable
+```
+
+## working on the front end
 
 
 

@@ -8,5 +8,7 @@ class Visitor < ApplicationRecord
 
   accepts_nested_attributes_for :comments
   accepts_nested_attributes_for :messages
+
+  include Notifiable
 end
 
