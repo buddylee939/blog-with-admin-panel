@@ -3,7 +3,7 @@ Rails.application.routes.draw do
   get '/login' => 'admin/sessions#new'
   get '/logout' => 'admin/sessions#destroy'
   
-  root 'admin/moderators#index'
+  root 'posts#index'
   namespace :admin do
     resources :posts
     resources :settings, only: [:new, :edit, :update, :create]
@@ -17,6 +17,10 @@ Rails.application.routes.draw do
     resources :moderators, only: [:index, :edit, :update]
   end
   # resources :moderators, module: 'admin'
+  
+  resources :posts, only: [:index, :show]
+  resources :messages, only: [:new, :create]
+  resources :comments, only: [:create]
 
   match 'dismiss_all_notifications', to: 'admin/notifications#delete_all', via: :delete
 end

@@ -10,6 +10,9 @@ class Admin::PostsController < Admin::ApplicationController
     end
   end
 
+  def show    
+  end  
+
   def new
     @post = Post.new
   end
@@ -36,9 +39,6 @@ class Admin::PostsController < Admin::ApplicationController
       flash[:alert] = 'There was a problem updating post'
       render :edit
     end
-  end
-
-  def show    
   end
 
   def destroy    

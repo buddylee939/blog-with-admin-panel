@@ -1620,11 +1620,589 @@ end
 ## Front end layout
 
 - rails g controller posts index show
+- rails g controller messages new crete
 - update routes
 
 ```
+	root 'posts#index'
+  resources :posts, only: [:index, :show]
+  resources :messages, only: [:new, :create]
+```
+
+- update setting.rb
 
 ```
+class Setting < ApplicationRecord
+  def self.site_name
+    Setting.first.site_name
+  end
+end
+```
+
+- update sessions controller new action
+
+```
+  def new
+    redirect_to admin_dashboard_index_url if current_moderator
+  end
+```
+
+- add the nav to layout/app
+
+```
+    <p>
+      <%= link_to Setting.site_name, posts_path %>
+      <%= link_to 'Posts', posts_path %>
+      <%= link_to 'About', "#" %>
+      <%= link_to 'Contact', new_message_path %>
+      <%= link_to 'Login', login_path %>
+    </p>
+```
+
+- **list posts with pagination**
+- update setting.rb
+
+```
+class Setting < ApplicationRecord
+  def self.site_name
+    Setting.first.site_name
+  end
+
+  def self.post_per_page
+    Setting.first.post_per_page
+  end
+end
+
+```
+
+- update posts/index
+
+```
+<h1>Posts</h1>
+<% @posts.each do |post| %>
+	<p>
+		<%= truncate(post.title, length: 70, separator: ' ') %> <br>
+		<%= time_ago post.created_at %>
+	</p>
+	<p>
+		<%= truncate(post.content, length: 50, separator: ' ') { link_to 'Read More', post_path(post)} %>
+	</p>
+	<p>
+		<% post.tags.each do |tag| %>
+			<%= link_to tag.name, '#' %>
+		<% end %>
+	</p>
+<% end %>
+
+<%= paginate @posts %>
+```
+
+- update posts controller index action
+
+```
+class PostsController < ApplicationController
+  def index
+    @posts = Post.where(publish: true).order(id: :desc).page(params[:page]).per(Setting.post_per_page)
+  end
+
+  def show
+  end
+end
+
+```
+
+- **filter by tag name and visibility**
+- in setting.rb add the method
+
+```
+  def self.tag_visible?
+    Setting.first.tag_visibility
+  end
+```
+
+- update the index, wrapping an if around the tags
+
+```
+	<% if Setting.tag_visible? %>
+		<p>
+			<% post.tags.each do |tag| %>
+				<%= link_to tag.name, '#' %>
+			<% end %>
+		</p>
+	<% end %>
+```  
+
+- **filtering by tags**
+- update the index tags output
+
+```
+	<% if Setting.tag_visible? %>
+	<h2>Tags</h2>
+		<p>
+			<% post.tags.each do |tag| %>
+				<%= link_to tag.name, posts_path(tag: tag.name) %>
+			<% end %>
+		</p>
+	<% end %>
+```
+
+- update posts controller index action
+
+```
+  def index
+    if params[:tag]
+      @posts = Post.filter_by_tags(params[:tag]).page(params[:page]).per(Setting.post_per_page)
+    else
+      @posts = Post.where(publish: true).order(id: :desc).page(params[:page]).per(Setting.post_per_page)
+    end
+  end
+```
+
+- in post.rb create the method
+
+```
+  def self.filter_by_tags param_tag
+    includes(:tags).where(publish: true, tags: {name: param_tag}).order(id: :desc)
+  end
+```  	
+
+- working on the show page we create a method to take a number and show double digit
+- in application heler
+
+```
+  def double_digit_number n
+    '%02d' % n
+  end
+```
+
+- in show.html
+
+```
+<p>	
+	<% @post.comments.each.with_index(1) do |comment, index| %>
+		<%= comment.message %> <b><%= double_digit_number(index) %></b> <br>
+		<b><%= comment.visitor.fullname %></b> commented: <%= time_ago @post.created_at %>
+	<% end %>
+</p>
+```
+
+- **comments form in show page**
+- there was an error when resetting the database, if the settings are empty, the settings model was throwing an error so we added the try which checks to see if there is a record first
+
+```
+class Setting < ApplicationRecord
+  def self.site_name
+     Setting.first.try(:site_name) ? Setting.first.site_name : "Site name here"
+  end
+
+  def self.post_per_page
+    Setting.first.try(:post_per_page)
+  end
+
+  def self.tag_visible?
+    Setting.first.try(:tag_visibility)
+  end
+end
+
+```
+
+- rails g controller comments create
+- update routes
+
+````
+resources :comments, only: [:create]
+```
+
+- in posts controller, update the show to add the visitor comment variable with the comments object as well
+
+```
+  def show
+    @post = Post.find(params[:id])
+    @visitor_comment = Visitor.new(comments: [Comment.new])
+  end
+```
+
+- add the form in the posts/show page, using the visitor comment instance variable and submitting to comments controller
+
+```
+<%= form_for @visitor_comment, url: comments_url do |f| %>
+	<p>
+		<%= f.label :fullname %>
+		<%= f.text_field :fullname %>
+	</p>
+	<p>
+		<%= f.label :email %>
+		<%= f.text_field :email %>
+	</p>
+	<%= f.fields_for :comments do |c| %>
+		<p>
+			<%= c.label :message %>
+			<%= c.text_area :message %>
+			<%= c.hidden_field :post_id, value: @post.id %>
+		</p>
+		<p>
+			<%= f.submit 'Add Comment' %>
+		</p>
+	<% end %>
+<% end %>
+```
+
+- add to the visitor.rb
+
+```
+accepts_nested_attributes_for :comments
+```
+
+- update comments controller, create
+
+```
+class CommentsController < ApplicationController
+  def create
+    @visitor = Visitor.new(visitor_comments_params)
+    @visitor.save
+    redirect_back(fallback_location: root_path)
+  end
+
+  private
+
+  def visitor_comments_params
+    params.require(:visitor).permit(:fullname, :email, :comments_attributes => [:message, :post_id])
+  end
+end
+
+```  
+
+## Scoping comments
+
+- update comments controller
+
+```
+class CommentsController < ApplicationController
+  def create
+    visitor = Visitor.find_by(email: visitor_comments_params[:email])
+
+    if visitor 
+      visitor.tap do |v|
+        v.comments << Comment.new(visitor_comments_params[:comments_attributes]['0'])
+      end
+    else
+      visitor = Visitor.new(visitor_comments_params)
+    end
+
+    if visitor.save
+      flash[:notice] = "Successfully created new comment"
+    else
+      flash[:alert] = "There was a problem creating your comment"
+    end
+
+    redirect_back(fallback_location: root_path)
+  end
+
+  private
+
+  def visitor_comments_params
+    params.require(:visitor).permit(:fullname, :email, :comments_attributes => [:message, :post_id])
+  end
+end
+
+```
+
+- rails g migration change_comments_status_default
+- update the migration
+
+```
+class ChangeCommentsStatusDefault < ActiveRecord::Migration[5.2]
+  def change
+    change_column_default :comments, :status, false
+  end
+end
+
+```
+
+- rails db:migrate
+- add a scope to comment.rb
+
+```
+scope :approved, -> { where status: true }
+```
+
+- update the posts/show page to use the approved method
+
+```
+<% @post.comments.approved.each.with_index(1) do |comment, index| %>
+```
+
+- add the scope to post.rb
+
+```
+scope :published, -> { where(publish: true).order(id: :desc) }
+```
+
+- update posts controller to use this scope
+
+```
+  def index
+    if params[:tag]
+      @posts = Post.filter_by_tags(params[:tag]).page(params[:page]).per(Setting.post_per_page)
+    else
+      @posts = Post.published.page(params[:page]).per(Setting.post_per_page)
+    end
+  end
+```
+
+- add validation to comment.rb
+
+```
+validates :message, presence: true
+```
+
+- add validation to visitor.rb
+
+```
+  validates :fullname, presence: true
+  validates :email, format: { with: /@/, message: 'is not valid' }
+```
+
+- refactor comments_controller with methods under private
+
+```
+class CommentsController < ApplicationController
+  def create
+    if visitor.save
+      flash[:notice] = "Successfully created new comment"
+    else
+      flash[:alert] = "There was a problem creating your comment"
+    end
+
+    redirect_back(fallback_location: root_path)
+  end
+
+  private
+
+  def visitor_comments_params
+    params.require(:visitor).permit(:fullname, :email, :comments_attributes => [:message, :post_id])
+  end
+
+  def visitor
+    build_existing_visitor_comment || build_new_visitor_comment
+  end
+
+  def existing_visitor
+    @visitor ||= Visitor.find_by(email: visitor_comments_params[:email])
+  end
+
+  def build_new_visitor_comment
+    Visitor.new(visitor_comments_params)
+  end
+
+  def comment
+    visitor_comments_params[:comments_attributes]['0']
+  end
+
+  def build_existing_visitor_comment
+    return unless existing_visitor
+    existing_visitor.tap do |v|
+      v.comments << Comment.new(comment)
+    end
+  end
+end
+```
+
+- **we refactored the above even further using services**  
+- create a folder app/services
+- create the file visitor_comment_service.rb
+
+```
+class VisitorCommentService
+  attr_reader :params
+
+  def initialize(params)
+    @params = params
+  end
+
+  def visitor
+    build_existing_visitor_comment || build_new_visitor_comment
+  end
+
+  private
+
+  def existing_visitor
+    @visitor ||= Visitor.find_by(email: params[:email])
+  end
+
+  def build_new_visitor_comment
+    Visitor.new(params)
+  end
+
+  def comment
+    params[:comments_attributes]['0']
+  end
+
+  def build_existing_visitor_comment
+    return unless existing_visitor
+    existing_visitor.tap do |v|
+      v.comments << Comment.new(comment)
+    end
+  end  
+end
+```
+
+- update comments controller, erase all the methods we put in the service file and replace with
+
+```
+  def visitor
+    VisitorCommentService.new(visitor_comments_params).visitor
+  end
+```
+
+- restart the server
+- showing the flash messages, 
+- update comments controller with the method set_visitor_sessions
+
+```
+class CommentsController < ApplicationController
+  def create
+    if visitor.save
+      flash[:notice] = "Successfully created new comment"
+    else
+      flash[:alert] = "There was a problem creating your comment"
+      set_visitor_sessions
+    end
+
+    redirect_back(fallback_location: root_path)
+  end
+
+  private
+
+  def visitor_comments_params
+    params.require(:visitor).permit(:fullname, :email, :comments_attributes => [:message, :post_id])
+  end
+
+  def visitor
+    @visitor ||= VisitorCommentService.new(visitor_comments_params).visitor
+  end
+
+  def set_visitor_sessions
+    session[:visitor_errors] = visitor.errors.full_messages
+  end
+end
+```
+
+- update posts/show page to add the validation erros
+
+```
+<%= form_for @visitor_comment, url: comments_url do |f| %>
+  <% if session[:visitor_errors] %>
+    <div id="error_explanation">
+      <h2><%= pluralize(session[:visitor_errors].count, "error") %> prohibited this comment from being saved:</h2>
+      <ul>
+        <% session[:visitor_errors].each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+  <p>
+    <%= f.label :fullname %>
+    <%= f.text_field :fullname %>
+  </p>
+  <p>
+    <%= f.label :email %>
+    <%= f.text_field :email %>
+  </p>
+  <%= f.fields_for :comments do |c| %>
+    <p>
+      <%= c.label :message %>
+      <%= c.text_area :message %>
+      <%= c.hidden_field :post_id, value: @post.id %>
+    </p>
+    <p>
+      <%= f.submit 'Add Comment' %>
+    </p>
+  <% end %>
+<% end %>
+```
+
+- refresh page and try to create an empty message
+- the errors arent keep displaying if we refresh page
+- in posts controller update
+
+```
+class PostsController < ApplicationController
+  after_action :clear_sessions, only: [:show]
+  
+  def index
+    if params[:tag]
+      @posts = Post.filter_by_tags(params[:tag]).page(params[:page]).per(Setting.post_per_page)
+    else
+      @posts = Post.published.page(params[:page]).per(Setting.post_per_page)
+    end
+  end
+
+  def show
+    @post = Post.find(params[:id])
+    @visitor_comment = Visitor.new(comments: [Comment.new])    
+  end
+
+  private
+
+  def clear_sessions
+    [:visitor_errors].each { |k| session.delete(k) }
+  end
+end
+
+```
+
+- repopulating the form if there are errors
+- update comments controller
+
+```
+  def set_visitor_sessions
+    session[:visitor_errors] = visitor.errors.full_messages
+    session[:visitor_params] = visitor_comments_params
+  end
+```
+
+- update posts controller with visitor_comment method
+
+```
+class PostsController < ApplicationController
+  after_action :clear_sessions, only: [:show]
+
+  def index
+    if params[:tag]
+      @posts = Post.filter_by_tags(params[:tag]).page(params[:page]).per(Setting.post_per_page)
+    else
+      @posts = Post.published.page(params[:page]).per(Setting.post_per_page)
+    end
+  end
+
+  def show
+    @post = Post.find(params[:id])
+    @visitor_comment = visitor_comment
+  end
+
+  private
+
+  def clear_sessions
+    [:visitor_errors].each { |k| session.delete(k) }
+  end
+
+  def visitor_comment
+    if session[:visitor_errors]
+      VisitorCommentService.new(session[:visitor_params]).visitor
+    else
+      Visitor.new(comments: [Comment.new])    
+    end
+  end
+end
+
+```
+
+- refresh page and test out, fill out 1 field, submit, errors should appear and the field should save the info  
+
+## Messages
+
 
 ## THESE ARE HIS NOTES ON WHAT HE'S BUILDING
 
@@ -1871,5 +2449,37 @@ c. delete
 ## show 
 - show content with full details (title, date, content, tags, counter)
 - show list of comments
-- etc
+- show comments form (full name, email, message)
+## update
+- visitors can't update post
+## delete
+- visitors cant delete post
+
+# Comments
+- ability to fill in (fullname, message, email) and submit
+- full name, email and post ref. should be saved into visitor's table
+- and message should be saved into comments table
+- if email submitted already exists in visitor table, then get visitor id and
+- save comment against theat visitor
+- show success/failure flash messages
+- should not be able to save blank fields
+- should not be able to save none valid emails
+- show validations errors if empty field is submitted
+- remove validations errors after refreshing the screeen
+- for unsuccessful saves re-populate the form fields with previous data
+
+# Messages
+1. create
+- ability to fill in (fullname, message, email) and submit
+- full name and email should be saved into visitors' table
+- and message should be saved into messages table
+- if email submitted already exists in visitor table, then get visitor id and
+- save message against that visitor
+- show sucess/failure flash messages
+- should not be able to save blank fields
+- should not be able to save none valid emails
+- show validation errors if empty field is submitted
+- remove validation errors after refreshing the screen
+- for unsuccessful save re-populate the form fields with previous data
 ```
+
