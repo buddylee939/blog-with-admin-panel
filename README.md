@@ -2203,6 +2203,130 @@ end
 
 ## Messages
 
+- add validation to message.rb
+
+```
+validates :content, presence: true
+```
+
+- update messages/new with the form
+
+```
+<h1>Messages</h1>
+
+<%= form_for @visitor_message, url: messages_url do |f| %>
+  <% if @visitor_message.errors.any? %>
+    <div id="error_explanation">
+      <h2><%= pluralize(@visitor_message.count, "error") %> prohibited this message from sending:</h2>
+      <ul>
+        <% @visitor_message.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+  <p>
+    <%= f.label :fullname %>
+    <%= f.text_field :fullname %>
+  </p>
+  <p>
+    <%= f.label :email %>
+    <%= f.text_field :email %>
+  </p>
+  <%= f.fields_for :messages do |c| %>
+    <p>
+      <%= c.label :content %>
+      <%= c.text_area :content %>
+    </p>
+    <p>
+      <%= f.submit 'Send Message' %>
+    </p>
+  <% end %>
+<% end %>
+```
+
+- add to visitor.rb
+
+```
+accepts_nested_attributes_for :messages
+```
+
+- update messages controller
+
+```
+class MessagesController < ApplicationController
+  def new
+    @visitor_message = Visitor.new(messages: [Message.new])
+  end
+
+  def create
+    if visitor.save
+      flash[:notice] = "Successfully sent your message"
+      redirect_to new_message_path
+    else
+      @visitor_message = visitor
+      render :new
+    end
+  end
+
+  def strong_params
+    params.require(:visitor).permit(:fullname, :email, messages_attributes: [:content])
+  end
+
+  def visitor
+    @visitor ||= VisitorMessageService.new(strong_params).visitor
+  end
+end
+
+```
+
+- create the file services/visitor_message_service.rb
+
+```
+class VisitorMessageService
+  attr_reader :params
+
+  def initialize(params)
+    @params = params
+  end
+
+  def visitor
+    build_existing_visitor_message || build_new_visitor_message
+  end
+
+  private
+
+  def existing_visitor
+    @visitor ||= Visitor.find_by(email: params[:email])
+  end
+
+  def build_new_visitor_message
+    Visitor.new(params)
+  end
+
+  def message
+    params[:messages_attributes]['0']
+  end
+
+  def build_existing_visitor_message
+    return unless existing_visitor
+    existing_visitor.tap do |v|
+      v.messages << Message.new(message)
+    end
+  end    
+end
+```
+
+### Notifications
+
+- 
+
+
+
+
+
+
+
 
 ## THESE ARE HIS NOTES ON WHAT HE'S BUILDING
 
@@ -2481,5 +2605,10 @@ c. delete
 - show validation errors if empty field is submitted
 - remove validation errors after refreshing the screen
 - for unsuccessful save re-populate the form fields with previous data
+
+# Notifications
+1. create
+- register new notification when visitor leaves a comment
+- register new notification when a new visitor is saved
 ```
 
