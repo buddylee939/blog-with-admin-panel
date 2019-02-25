@@ -1809,7 +1809,7 @@ end
 - rails g controller comments create
 - update routes
 
-````
+```
 resources :comments, only: [:create]
 ```
 
@@ -2363,6 +2363,9 @@ include Notifiable
 ```
 
 ## working on the front end
+
+- copy the images to assets images
+- 
 
 
 
