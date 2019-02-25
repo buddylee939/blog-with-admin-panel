@@ -10,22 +10,17 @@
   </head>
 
   <body>
-    <% if flash[:notice] %>
-      <div class="notice"><%= flash[:notice] %></div>
-    <% end %>
+    <%= render 'shared/nav' %>
+    <div class="container">      
+      <% if flash[:notice] %>
+        <div class="notice"><%= flash[:notice] %></div>
+      <% end %>
 
-    <% if flash[:alert] %>
-      <div class="alert"><%= flash[:alert] %></div>
-    <% end %>
-    
-    <p>
-      <%= link_to Setting.site_name, posts_path %>
-      <%= link_to 'Posts', posts_path %>
-      <%= link_to 'About', "#" %>
-      <%= link_to 'Contact', new_message_path %>
-      <%= link_to 'Login', login_path %>
-    </p>
+      <% if flash[:alert] %>
+        <div class="alert"><%= flash[:alert] %></div>
+      <% end %>
 
-    <%= yield %>
+      <%= yield %>
+    </div>
   </body>
 </html>

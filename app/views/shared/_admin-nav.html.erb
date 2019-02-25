@@ -1,0 +1,40 @@
+<nav class="navbar navbar-default">
+  <div class="container-fluid">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <%= link_to Setting.site_name, posts_path, class: 'navbar-brand' %>
+    </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav">
+        <li class="active">
+					<%= link_to admin_dashboard_index_path do %>
+						Dashboard <span class="sr-only">(current)</span>
+					<% end %>
+				</li>
+				<li><%= link_to 'Posts', admin_posts_path %></li>
+				<li><%= link_to 'Moderators', admin_moderators_path %></li>
+				<li><%= link_to 'Tags', new_admin_tag_path %></li>
+				<li><%= link_to 'Comments', admin_comments_path %></li>
+				<li><%= link_to 'Visitors', admin_visitors_path %></li>
+				<li><%= link_to 'Messages', admin_messages_path %></li>
+				<li><%= link_to 'Notifications', admin_notifications_path %></li>
+				<li><%= link_to 'Setting', new_admin_setting_path %></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <% if session[:current_moderator_id] %>
+          <li><%= link_to 'Logout', logout_path %></li>
+        <% else %>
+          <li><%= link_to 'Login', login_path %></li>
+        <% end %>
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
